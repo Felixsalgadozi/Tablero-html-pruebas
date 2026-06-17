@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visor Temporal · Macroproyecto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=JetBrains+Mono:wght@300;400;500;700&family=Inter+Tight:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+  --bg: #0E0E10;
+  --bg-2: #18181B;
+  --bg-3: #232327;
+  --bg-card: #1C1C1F;
+  --line: #2D2D33;
+  --line-soft: #1F1F23;
+  --ink: #F4F2EE;
+  --ink-soft: #A8A6A1;
+  --ink-mute: #6B6964;
+  --brand: #E63946;
+  --brand-dark: #B5283A;
+  --accent: #D4A574;
+
+  /* Estados */
+  --st-sin: #7CB342;
+  --st-ejec: #FFC107;
+  --st-parc: #4DD0E1;
+  --st-entr: #E53935;
+  --st-list: #1E88E5;
+  --st-camp: #AB47BC;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter Tight', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius: 6px;
+  --radius-lg: 12px;
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
+  --transition: 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Decoración de fondo: grano sutil + retícula técnica */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* ============================================================
+   LAYOUT PRINCIPAL
+   ============================================================ */
+#app {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 280px 1fr 360px;
+  grid-template-rows: 56px 1fr;
+  grid-template-areas:
+    "topbar topbar topbar"
+    "sidebar canvas inspector";
+}
+
+/* TOPBAR */
+.topbar {
+  grid-area: topbar;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.brand-mark {
+  width: 18px;
+  height: 18px;
+  background: var(--brand);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+}
+.brand-mark::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1.5px solid var(--bg-2);
+  border-radius: 1px;
+}
+
+.brand-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-left: 2px;
+}
+
+.topbar-sep {
+  width: 1px;
+  height: 24px;
+  background: var(--line);
+}
+
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: var(--transition);
+  border: 1px solid transparent;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-ghost {
+  color: var(--ink-soft);
+  border-color: var(--line);
+}
+.btn-ghost:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--bg-3);
+  border-color: var(--ink-mute);
+}
+.btn-primary {
+  background: var(--brand);
+  color: white;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--brand-dark);
+}
+.btn-icon {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* SIDEBAR - lista de macros */
+.sidebar {
+  grid-area: sidebar;
+  background: var(--bg-2);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-section {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.sidebar-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.macro-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.macro-list::-webkit-scrollbar { width: 8px; }
+.macro-list::-webkit-scrollbar-track { background: transparent; }
+.macro-list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+.macro-item {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+  transition: var(--transition);
+  position: relative;
+}
+.macro-item:hover {
+  background: var(--bg-3);
+}
+.macro-item.active {
+  background: var(--bg-3);
+}
+.macro-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--brand);
+  border-radius: 1px;
+}
+.macro-item-content {
+  flex: 1;
+  min-width: 0;
+}
+.macro-item-name {
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.macro-item-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  margin-top: 2px;
+}
+.macro-item-actions {
+  opacity: 0;
+  transition: var(--transition);
+  display: flex;
+  gap: 2px;
+}
+.macro-item:hover .macro-item-actions {
+  opacity: 1;
+}
+.macro-item-action {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-mute);
+}
+.macro-item-action:hover {
+  background: var(--line);
+  color: var(--ink);
+}
+
+.empty-state {
+  padding: 30px 20px;
+  text-align: center;
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.empty-state-icon {
+  font-size: 30px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+
+/* CANVAS AREA */
+.canvas-area {
+  grid-area: canvas;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.toolbar {
+  height: 48px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 6px;
+}
+.tool-btn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  border: 1px solid transparent;
+  transition: var(--transition);
+}
+.tool-btn:hover:not(:disabled) {
+  background: var(--bg-3);
+  color: var(--ink);
+}
+.tool-btn.active {
+  background: var(--bg-3);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.tool-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.tool-sep {
+  width: 1px;
+  height: 22px;
+  background: var(--line);
+  margin: 0 4px;
+}
+.tool-info {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.canvas-wrap {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg);
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(230, 57, 70, 0.03), transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(212, 165, 116, 0.025), transparent 50%);
+}
+#stage {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+}
+#stage.drawing { cursor: crosshair; }
+#stage.panning { cursor: grabbing; }
+
+.canvas-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 40px;
+  color: var(--ink-mute);
+  pointer-events: none;
+}
+.canvas-empty .big {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+  font-style: italic;
+}
+.canvas-empty .small {
+  font-size: 13px;
+  max-width: 360px;
+  line-height: 1.6;
+}
+.canvas-empty .upload-cta {
+  margin-top: 24px;
+  pointer-events: all;
+}
+
+/* TIMELINE */
+.timeline {
+  height: 110px;
+  background: var(--bg-2);
+  border-top: 1px solid var(--line);
+  padding: 14px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.timeline-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+.timeline-date {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  font-style: italic;
+  color: var(--accent);
+}
+.timeline-track {
+  position: relative;
+  height: 44px;
+  background: var(--bg-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+.timeline-slider {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  margin: 0;
+  cursor: pointer;
+  z-index: 3;
+}
+.timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 4px;
+  height: 50px;
+  background: var(--accent);
+  cursor: ew-resize;
+  border-radius: 2px;
+  box-shadow: 0 0 12px rgba(212, 165, 116, 0.5);
+}
+.timeline-slider::-moz-range-thumb {
+  width: 4px;
+  height: 50px;
+  background: var(--accent);
+  cursor: ew-resize;
+  border-radius: 2px;
+  border: none;
+  box-shadow: 0 0 12px rgba(212, 165, 116, 0.5);
+}
+.timeline-ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding: 0 2px;
+}
+.timeline-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.timeline-tick-label {
+  position: absolute;
+  bottom: -16px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--ink-mute);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.timeline-segments {
+  position: absolute;
+  inset: 2px 2px;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 4px;
+  opacity: 0.5;
+}
+
+/* INSPECTOR */
+.inspector {
+  grid-area: inspector;
+  background: var(--bg-2);
+  border-left: 1px solid var(--line);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.inspector::-webkit-scrollbar { width: 8px; }
+.inspector::-webkit-scrollbar-track { background: transparent; }
+.inspector::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+.inspector-section {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.inspector-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  margin-bottom: 12px;
+}
+
+.inspector-empty {
+  padding: 60px 30px;
+  text-align: center;
+  color: var(--ink-mute);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.field {
+  margin-bottom: 14px;
+}
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.field label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 5px;
+}
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--ink);
+  transition: var(--transition);
+  outline: none;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--accent);
+}
+.field input[type="date"] {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.field input[type="color"] {
+  height: 32px;
+  padding: 2px;
+  cursor: pointer;
+}
+
+/* Estado actual badge */
+.current-state-card {
+  padding: 14px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.current-state-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  position: relative;
+}
+.current-state-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0.4;
+}
+.current-state-text {
+  flex: 1;
+  min-width: 0;
+}
+.current-state-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+.current-state-meta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-mute);
+  margin-top: 2px;
+}
+
+/* KPIs */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.kpi {
+  padding: 10px 12px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+.kpi-value {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+  font-feature-settings: 'tnum';
+}
+.kpi-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-top: 6px;
+}
+
+/* Lista de estados (resumen del corte) */
+.state-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.state-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  font-size: 12.5px;
+}
+.state-row-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.state-row-name {
+  flex: 1;
+}
+.state-row-count {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* MODAL */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.modal-backdrop.open {
+  display: flex;
+  animation: fadeIn 0.2s ease;
+}
+.modal {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  width: 440px;
+  max-width: 90vw;
+  box-shadow: var(--shadow-lg);
+  animation: modalPop 0.25s cubic-bezier(0.2, 0, 0, 1.2);
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalPop {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+.modal-sub {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 20px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* TOAST */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--ink);
+  color: var(--bg);
+  padding: 10px 18px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 200;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+  pointer-events: none;
+}
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* Polygon list inside inspector */
+.poly-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.poly-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.poly-item:hover { border-color: var(--ink-mute); }
+.poly-item.selected { border-color: var(--accent); }
+.poly-item-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.poly-item-name {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.poly-item-state {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+}
+
+/* Hint flotante mientras dibuja */
+.drawing-hint {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(28, 28, 31, 0.95);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: 12.5px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  z-index: 20;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+.drawing-hint kbd {
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 1px 6px;
+  margin: 0 2px;
+  font-family: inherit;
+  font-size: 10px;
+  color: var(--ink);
+}
+
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div>
+        <div>Visor Temporal</div>
+        <div class="brand-meta">v0.1 · prototipo</div>
+      </div>
+    </div>
+    <div class="topbar-sep"></div>
+    <div id="topbar-macro-name" style="font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft);"></div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost" id="btn-export" disabled>↓ Exportar JSON</button>
+      <button class="btn btn-ghost" id="btn-import">↑ Importar JSON</button>
+      <input type="file" id="file-import" accept=".json" style="display:none">
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">
+        <span>Macroproyectos</span>
+        <button class="btn btn-primary" id="btn-new-macro" style="padding: 5px 10px; font-size: 11px;">+ Nuevo</button>
+      </div>
+    </div>
+    <div class="macro-list" id="macro-list">
+      <div class="empty-state" id="macro-empty">
+        <div class="empty-state-icon">⌗</div>
+        <div>Sin macroproyectos aún.</div>
+        <div style="margin-top: 6px;">Crea uno para empezar.</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CANVAS -->
+  <main class="canvas-area">
+    <div class="toolbar">
+      <button class="tool-btn" id="tool-select" disabled>
+        <span>↖</span> Seleccionar
+      </button>
+      <button class="tool-btn" id="tool-draw" disabled>
+        <span>✎</span> Dibujar polígono
+      </button>
+      <div class="tool-sep"></div>
+      <button class="tool-btn" id="tool-upload-img" disabled>
+        <span>🖼</span> Cambiar imagen
+      </button>
+      <input type="file" id="file-image" accept="image/*" style="display:none">
+      <div class="tool-info">
+        <span id="zoom-info">100%</span>
+        <span id="coord-info">—</span>
+      </div>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="stage"></canvas>
+      <div class="canvas-empty" id="canvas-empty">
+        <div class="big">Selecciona o crea un macroproyecto</div>
+        <div class="small">El visor te permite cargar un plano, dibujar polígonos sobre él y simular cómo cambian de estado en el tiempo según el cronograma de obra.</div>
+      </div>
+      <div class="drawing-hint" id="drawing-hint" style="display: none;">
+        Clic para agregar vértice · <kbd>Enter</kbd> cerrar · <kbd>Esc</kbd> cancelar
+      </div>
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="timeline" id="timeline-container" style="display: none;">
+      <div class="timeline-header">
+        <span class="timeline-label">Fecha de corte</span>
+        <span class="timeline-date" id="cut-date">—</span>
+      </div>
+      <div class="timeline-track">
+        <div class="timeline-segments" id="timeline-segments"></div>
+        <div class="timeline-ticks" id="timeline-ticks"></div>
+        <input type="range" id="timeline-slider" min="0" max="100" value="50" class="timeline-slider">
+      </div>
+    </div>
+  </main>
+
+  <!-- INSPECTOR -->
+  <aside class="inspector" id="inspector">
+    <div class="inspector-empty" id="inspector-empty">
+      Selecciona un macroproyecto para ver sus detalles, o un polígono para editar sus fechas.
+    </div>
+  </aside>
+</div>
+
+<!-- MODAL: nuevo macro -->
+<div class="modal-backdrop" id="modal-new-macro">
+  <div class="modal">
+    <div class="modal-title">Nuevo macroproyecto</div>
+    <div class="modal-sub">Asigna un nombre y opcionalmente un código. Podrás cargar el plano después.</div>
+    <div class="field">
+      <label>Nombre</label>
+      <input type="text" id="new-macro-name" placeholder="Ej. Kachipay - Dalandia">
+    </div>
+    <div class="field">
+      <label>Código (opcional)</label>
+      <input type="text" id="new-macro-code" placeholder="Ej. KCH-DAL">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="cancel-new-macro">Cancelar</button>
+      <button class="btn btn-primary" id="confirm-new-macro">Crear</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   ESTADO GLOBAL
+   ============================================================ */
+
+// Catálogo de estados (fijo en prototipo; editable en producción)
+const ESTADOS = [
+  { id: 'SIN_INTERVENCION', nombre: 'Sin intervención', color: '#7CB342', orden: 1 },
+  { id: 'EN_EJECUCION',     nombre: 'En ejecución',      color: '#FFC107', orden: 2 },
+  { id: 'ENTREGADO_PARCIAL',nombre: 'Entregado parcial', color: '#4DD0E1', orden: 3 },
+  { id: 'EN_ENTREGAS',      nombre: 'En entregas',       color: '#E53935', orden: 4 },
+  { id: 'ENTREGADO',        nombre: 'Entregado',         color: '#1E88E5', orden: 5 },
+];
+
+const STORAGE_KEY = 'visorTemporal_macros_v1';
+
+// Estado en memoria
+const state = {
+  macros: {},            // { id: { id, nombre, codigo, imagen (dataURL), poligonos: [], created: timestamp } }
+  currentMacroId: null,
+  selectedPolyId: null,
+  tool: 'select',        // 'select' | 'draw'
+  draftPoints: [],       // vértices del polígono que se está dibujando
+  cutDate: null,         // Date actual del slider
+  // Vista (pan + zoom)
+  view: { x: 0, y: 0, scale: 1 },
+  panning: false,
+  panStart: null,
+  image: null,           // HTMLImageElement
+};
+
+/* ============================================================
+   UTILIDADES
+   ============================================================ */
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+function uid(prefix = 'p') {
+  return prefix + '_' + Math.random().toString(36).slice(2, 9);
+}
+
+function toast(msg, ms = 2200) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const date = (d instanceof Date) ? d : new Date(d);
+  if (isNaN(date)) return '—';
+  const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return `${date.getDate()} ${meses[date.getMonth()]} ${date.getFullYear()}`;
+}
+function fmtDateLong(d) {
+  if (!d) return '—';
+  const date = (d instanceof Date) ? d : new Date(d);
+  if (isNaN(date)) return '—';
+  return date.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+function toISODate(d) {
+  if (!d) return '';
+  const date = (d instanceof Date) ? d : new Date(d);
+  if (isNaN(date)) return '';
+  return date.toISOString().slice(0, 10);
+}
+
+/* Calcula estado de un polígono en una fecha dada */
+function estadoEnFecha(poly, fecha) {
+  if (!fecha) return null;
+  const f = new Date(fecha).getTime();
+  const fInicioObra = poly.fechaInicioObra ? new Date(poly.fechaInicioObra).getTime() : null;
+  const fFinObra = poly.fechaFinObra ? new Date(poly.fechaFinObra).getTime() : null;
+  const fParcial = poly.fechaEntregaParcial ? new Date(poly.fechaEntregaParcial).getTime() : null;
+  const fInicioEnt = poly.fechaInicioEntregas ? new Date(poly.fechaInicioEntregas).getTime() : null;
+  const fFinEnt = poly.fechaFinEntregas ? new Date(poly.fechaFinEntregas).getTime() : null;
+
+  if (fInicioObra === null) return 'SIN_INTERVENCION';
+  if (f < fInicioObra) return 'SIN_INTERVENCION';
+  // Si hay fecha de fin entregas y ya pasó
+  if (fFinEnt !== null && f > fFinEnt) return 'ENTREGADO';
+  // Si está en periodo de entregas
+  if (fInicioEnt !== null && f >= fInicioEnt) {
+    if (fFinEnt !== null && f <= fFinEnt) return 'EN_ENTREGAS';
+    if (fFinEnt === null) return 'EN_ENTREGAS';
+  }
+  // Si hay entrega parcial y ya pasó
+  if (fParcial !== null && f >= fParcial) {
+    // Si después viene inicio entregas pero aún no llega
+    if (fInicioEnt === null || f < fInicioEnt) return 'ENTREGADO_PARCIAL';
+  }
+  // Si pasó fin obra pero no hay entregas definidas
+  if (fFinObra !== null && f > fFinObra && fInicioEnt === null) return 'ENTREGADO';
+  // En ejecución por defecto
+  return 'EN_EJECUCION';
+}
+
+function colorOfEstado(estadoId) {
+  const e = ESTADOS.find(s => s.id === estadoId);
+  return e ? e.color : '#666666';
+}
+function nombreOfEstado(estadoId) {
+  const e = ESTADOS.find(s => s.id === estadoId);
+  return e ? e.nombre : '—';
+}
+
+/* Rango temporal del macro: min y max entre todas las fechas */
+function rangoTemporal() {
+  const macro = state.macros[state.currentMacroId];
+  if (!macro || !macro.poligonos.length) return null;
+  let min = null, max = null;
+  for (const p of macro.poligonos) {
+    for (const k of ['fechaInicioObra','fechaFinObra','fechaEntregaParcial','fechaInicioEntregas','fechaFinEntregas']) {
+      if (p[k]) {
+        const t = new Date(p[k]).getTime();
+        if (min === null || t < min) min = t;
+        if (max === null || t > max) max = t;
+      }
+    }
+  }
+  if (min === null) return null;
+  // padding 5% antes y después
+  const span = max - min;
+  return {
+    min: min - span * 0.05,
+    max: max + span * 0.05,
+  };
+}
+
+/* Test si punto está dentro de polígono (ray casting) */
+function pointInPoly(pt, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y;
+    const xj = poly[j].x, yj = poly[j].y;
+    const intersect = ((yi > pt.y) !== (yj > pt.y)) &&
+      (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+/* Centroide aproximado */
+function centroid(pts) {
+  if (!pts.length) return { x: 0, y: 0 };
+  let cx = 0, cy = 0;
+  for (const p of pts) { cx += p.x; cy += p.y; }
+  return { x: cx / pts.length, y: cy / pts.length };
+}
+
+/* ============================================================
+   PERSISTENCIA
+   ============================================================ */
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      state.macros = data.macros || {};
+    }
+  } catch (e) {
+    console.warn('No se pudo cargar de storage', e);
+    state.macros = {};
+  }
+}
+function saveToStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ macros: state.macros }));
+  } catch (e) {
+    // localStorage llenó (imágenes grandes)
+    toast('⚠ No se pudo guardar localmente (imagen muy grande). Exporta JSON.');
+    console.warn(e);
+  }
+}
+
+/* ============================================================
+   RENDER: macros sidebar
+   ============================================================ */
+function renderMacroList() {
+  const list = $('#macro-list');
+  const empty = $('#macro-empty');
+  const ids = Object.keys(state.macros);
+
+  // limpiar items previos pero conservar empty
+  Array.from(list.querySelectorAll('.macro-item')).forEach(n => n.remove());
+
+  if (ids.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  // ordenar por created desc
+  const sorted = ids.map(id => state.macros[id]).sort((a, b) => b.created - a.created);
+
+  for (const m of sorted) {
+    const div = document.createElement('div');
+    div.className = 'macro-item' + (m.id === state.currentMacroId ? ' active' : '');
+    div.innerHTML = `
+      <div class="macro-item-content">
+        <div class="macro-item-name">${escapeHtml(m.nombre)}</div>
+        <div class="macro-item-meta">${m.codigo ? escapeHtml(m.codigo) + ' · ' : ''}${m.poligonos.length} polígono${m.poligonos.length === 1 ? '' : 's'}</div>
+      </div>
+      <div class="macro-item-actions">
+        <button class="macro-item-action" data-act="rename" title="Renombrar">✎</button>
+        <button class="macro-item-action" data-act="delete" title="Eliminar">✕</button>
+      </div>
+    `;
+    div.addEventListener('click', (e) => {
+      if (e.target.dataset.act) return;
+      selectMacro(m.id);
+    });
+    div.querySelector('[data-act="rename"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const n = prompt('Nuevo nombre:', m.nombre);
+      if (n && n.trim()) { m.nombre = n.trim(); saveToStorage(); renderMacroList(); renderTopbar(); }
+    });
+    div.querySelector('[data-act="delete"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm(`¿Eliminar "${m.nombre}" y todos sus polígonos? Esta acción no se puede deshacer.`)) {
+        delete state.macros[m.id];
+        if (state.currentMacroId === m.id) {
+          state.currentMacroId = null;
+          state.image = null;
+          state.selectedPolyId = null;
+        }
+        saveToStorage();
+        renderAll();
+      }
+    });
+    list.appendChild(div);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+/* ============================================================
+   RENDER: topbar
+   ============================================================ */
+function renderTopbar() {
+  const elName = $('#topbar-macro-name');
+  const btnExport = $('#btn-export');
+  if (state.currentMacroId && state.macros[state.currentMacroId]) {
+    const m = state.macros[state.currentMacroId];
+    elName.textContent = `${m.nombre}${m.codigo ? ' · ' + m.codigo : ''}`;
+    btnExport.disabled = false;
+  } else {
+    elName.textContent = '';
+    btnExport.disabled = true;
+  }
+}
+
+/* ============================================================
+   RENDER: inspector (panel derecho)
+   ============================================================ */
+function renderInspector() {
+  const inspector = $('#inspector');
+  inspector.innerHTML = '';
+
+  if (!state.currentMacroId) {
+    inspector.innerHTML = `<div class="inspector-empty">Selecciona un macroproyecto para ver sus detalles, o un polígono para editar sus fechas.</div>`;
+    return;
+  }
+
+  const macro = state.macros[state.currentMacroId];
+
+  // Si hay polígono seleccionado, mostrar editor
+  if (state.selectedPolyId) {
+    const poly = macro.poligonos.find(p => p.id === state.selectedPolyId);
+    if (poly) {
+      renderInspectorPoly(inspector, poly);
+      return;
+    }
+  }
+
+  // Si no, mostrar resumen del macro
+  renderInspectorMacro(inspector, macro);
+}
+
+function renderInspectorMacro(inspector, macro) {
+  // KPIs del corte
+  const cutDate = state.cutDate;
+  const counts = {};
+  let totalUnidades = 0;
+  let unidadesEntregadas = 0;
+  for (const p of macro.poligonos) {
+    const est = cutDate ? estadoEnFecha(p, cutDate) : null;
+    counts[est] = (counts[est] || 0) + 1;
+    totalUnidades += (parseInt(p.nUnidades) || 0);
+    if (est === 'ENTREGADO') unidadesEntregadas += (parseInt(p.nUnidades) || 0);
+  }
+
+  const html = `
+    <div class="inspector-section">
+      <div class="inspector-title">Estado del corte</div>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="kpi-value">${macro.poligonos.length}</div>
+          <div class="kpi-label">Polígonos</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-value">${totalUnidades}</div>
+          <div class="kpi-label">Unidades</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-value">${unidadesEntregadas}</div>
+          <div class="kpi-label">Entregadas</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-value">${totalUnidades ? Math.round(unidadesEntregadas/totalUnidades*100) : 0}%</div>
+          <div class="kpi-label">Avance</div>
+        </div>
+      </div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-title">Resumen por estado</div>
+      <div class="state-summary">
+        ${ESTADOS.map(e => `
+          <div class="state-row">
+            <div class="state-row-dot" style="background:${e.color}"></div>
+            <div class="state-row-name">${e.nombre}</div>
+            <div class="state-row-count">${counts[e.id] || 0}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="inspector-section">
+      <div class="inspector-title">Polígonos (${macro.poligonos.length})</div>
+      <div class="poly-list">
+        ${macro.poligonos.length === 0 ? '<div style="color: var(--ink-mute); font-size: 12px;">Aún no hay polígonos. Usa la herramienta de dibujo.</div>' : ''}
+        ${macro.poligonos.map(p => {
+          const est = cutDate ? estadoEnFecha(p, cutDate) : null;
+          const color = est ? colorOfEstado(est) : '#666';
+          return `
+            <div class="poly-item ${p.id === state.selectedPolyId ? 'selected' : ''}" data-id="${p.id}">
+              <div class="poly-item-dot" style="background:${color}"></div>
+              <div class="poly-item-name">${escapeHtml(p.nombre || p.id)}</div>
+              <div class="poly-item-state">${est ? nombreOfEstado(est).slice(0,3).toUpperCase() : '—'}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+  inspector.innerHTML = html;
+
+  $$('.poly-item').forEach(el => {
+    el.addEventListener('click', () => {
+      state.selectedPolyId = el.dataset.id;
+      renderInspector();
+      draw();
+    });
+  });
+}
+
+function renderInspectorPoly(inspector, poly) {
+  const cutDate = state.cutDate;
+  const est = cutDate ? estadoEnFecha(poly, cutDate) : null;
+  const html = `
+    <div class="inspector-section">
+      <div class="inspector-title">
+        <span>Polígono</span>
+      </div>
+      <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+        <button class="btn btn-ghost" id="btn-back" style="padding: 4px 10px; font-size: 11px;">← Volver</button>
+        <button class="btn btn-ghost" id="btn-delete-poly" style="padding: 4px 10px; font-size: 11px; color: var(--brand);">Eliminar</button>
+      </div>
+      <div class="current-state-card">
+        <div class="current-state-dot" style="background:${est ? colorOfEstado(est) : '#666'}; color:${est ? colorOfEstado(est) : '#666'}"></div>
+        <div class="current-state-text">
+          <div class="current-state-name">${est ? nombreOfEstado(est) : 'Sin fecha de corte'}</div>
+          <div class="current-state-meta">A ${cutDate ? fmtDate(cutDate) : '—'}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="inspector-section">
+      <div class="inspector-title">Identificación</div>
+      <div class="field">
+        <label>Nombre / ID visible</label>
+        <input type="text" id="f-nombre" value="${escapeHtml(poly.nombre || '')}" placeholder="Ej. ROSE-ET1-T1">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Proyecto</label>
+          <input type="text" id="f-proyecto" value="${escapeHtml(poly.proyecto || '')}" placeholder="ROSE">
+        </div>
+        <div class="field">
+          <label>Etapa</label>
+          <input type="text" id="f-etapa" value="${escapeHtml(poly.etapa || '')}" placeholder="ET1">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Torre</label>
+          <input type="text" id="f-torre" value="${escapeHtml(poly.torre || '')}" placeholder="T1">
+        </div>
+        <div class="field">
+          <label>N° Unidades</label>
+          <input type="number" id="f-unidades" value="${poly.nUnidades || ''}" min="0">
+        </div>
+      </div>
+    </div>
+
+    <div class="inspector-section">
+      <div class="inspector-title">Cronograma de obra</div>
+      <div class="field-row">
+        <div class="field">
+          <label>Inicio obra</label>
+          <input type="date" id="f-inicio-obra" value="${toISODate(poly.fechaInicioObra)}">
+        </div>
+        <div class="field">
+          <label>Fin obra</label>
+          <input type="date" id="f-fin-obra" value="${toISODate(poly.fechaFinObra)}">
+        </div>
+      </div>
+      <div class="field">
+        <label>Entrega parcial (opcional, subbase/base)</label>
+        <input type="date" id="f-parcial" value="${toISODate(poly.fechaEntregaParcial)}">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Inicio entregas</label>
+          <input type="date" id="f-inicio-ent" value="${toISODate(poly.fechaInicioEntregas)}">
+        </div>
+        <div class="field">
+          <label>Fin entregas</label>
+          <input type="date" id="f-fin-ent" value="${toISODate(poly.fechaFinEntregas)}">
+        </div>
+      </div>
+    </div>
+
+    <div class="inspector-section">
+      <div class="inspector-title">Notas</div>
+      <div class="field">
+        <textarea id="f-notas" rows="3" placeholder="Observaciones...">${escapeHtml(poly.notas || '')}</textarea>
+      </div>
+    </div>
+  `;
+  inspector.innerHTML = html;
+
+  $('#btn-back').addEventListener('click', () => {
+    state.selectedPolyId = null;
+    renderInspector();
+    draw();
+  });
+
+  $('#btn-delete-poly').addEventListener('click', () => {
+    if (confirm(`¿Eliminar el polígono "${poly.nombre || poly.id}"?`)) {
+      const macro = state.macros[state.currentMacroId];
+      macro.poligonos = macro.poligonos.filter(p => p.id !== poly.id);
+      state.selectedPolyId = null;
+      saveToStorage();
+      renderAll();
+    }
+  });
+
+  // Bind cambios
+  const bindField = (sel, prop) => {
+    const el = $(sel);
+    el.addEventListener('input', () => {
+      poly[prop] = el.value || null;
+      saveToStorage();
+      renderTimeline();
+      renderMacroList();
+      draw();
+      updateCurrentStateBadge();
+    });
+  };
+  bindField('#f-nombre', 'nombre');
+  bindField('#f-proyecto', 'proyecto');
+  bindField('#f-etapa', 'etapa');
+  bindField('#f-torre', 'torre');
+  bindField('#f-unidades', 'nUnidades');
+  bindField('#f-inicio-obra', 'fechaInicioObra');
+  bindField('#f-fin-obra', 'fechaFinObra');
+  bindField('#f-parcial', 'fechaEntregaParcial');
+  bindField('#f-inicio-ent', 'fechaInicioEntregas');
+  bindField('#f-fin-ent', 'fechaFinEntregas');
+  bindField('#f-notas', 'notas');
+}
+
+function updateCurrentStateBadge() {
+  // Actualizar el badge cuando cambian fechas sin re-renderear todo
+  const macro = state.macros[state.currentMacroId];
+  if (!macro || !state.selectedPolyId) return;
+  const poly = macro.poligonos.find(p => p.id === state.selectedPolyId);
+  if (!poly) return;
+  const est = state.cutDate ? estadoEnFecha(poly, state.cutDate) : null;
+  const dot = $('.current-state-dot');
+  const name = $('.current-state-name');
+  if (dot && name) {
+    dot.style.background = est ? colorOfEstado(est) : '#666';
+    dot.style.color = est ? colorOfEstado(est) : '#666';
+    name.textContent = est ? nombreOfEstado(est) : 'Sin fecha de corte';
+  }
+}
+
+/* ============================================================
+   TIMELINE
+   ============================================================ */
+function renderTimeline() {
+  const macro = state.macros[state.currentMacroId];
+  const container = $('#timeline-container');
+  if (!macro) { container.style.display = 'none'; return; }
+
+  const rango = rangoTemporal();
+  if (!rango) {
+    container.style.display = 'none';
+    state.cutDate = null;
+    return;
+  }
+  container.style.display = 'flex';
+  const slider = $('#timeline-slider');
+  slider.min = rango.min;
+  slider.max = rango.max;
+  // Si no hay cutDate aún o está fuera de rango, ponerla al medio
+  if (!state.cutDate || state.cutDate < rango.min || state.cutDate > rango.max) {
+    state.cutDate = (rango.min + rango.max) / 2;
+  }
+  slider.value = state.cutDate;
+  $('#cut-date').textContent = fmtDateLong(state.cutDate);
+
+  // Render ticks (años)
+  const ticks = $('#timeline-ticks');
+  ticks.innerHTML = '';
+  const startY = new Date(rango.min).getFullYear();
+  const endY = new Date(rango.max).getFullYear();
+  for (let y = startY; y <= endY + 1; y++) {
+    const t = new Date(y, 0, 1).getTime();
+    if (t < rango.min || t > rango.max) continue;
+    const pct = (t - rango.min) / (rango.max - rango.min) * 100;
+    const tickEl = document.createElement('div');
+    tickEl.className = 'timeline-tick';
+    tickEl.style.left = pct + '%';
+    const lbl = document.createElement('div');
+    lbl.className = 'timeline-tick-label';
+    lbl.textContent = y;
+    lbl.style.left = pct + '%';
+    ticks.appendChild(tickEl);
+    ticks.appendChild(lbl);
+  }
+
+  // Render segmentos: una franja por polígono con sus colores
+  const segs = $('#timeline-segments');
+  segs.innerHTML = '';
+  const polys = macro.poligonos;
+  const polysWithDates = polys.filter(p => p.fechaInicioObra);
+  const stripHeight = polysWithDates.length ? Math.max(2, 40 / polysWithDates.length) : 0;
+  polysWithDates.forEach((p, idx) => {
+    // generar tramos de estado: SIN -> OBRA -> ENT -> LISTO
+    const tramos = [];
+    const fIO = new Date(p.fechaInicioObra).getTime();
+    const fFO = p.fechaFinObra ? new Date(p.fechaFinObra).getTime() : null;
+    const fPa = p.fechaEntregaParcial ? new Date(p.fechaEntregaParcial).getTime() : null;
+    const fIE = p.fechaInicioEntregas ? new Date(p.fechaInicioEntregas).getTime() : null;
+    const fFE = p.fechaFinEntregas ? new Date(p.fechaFinEntregas).getTime() : null;
+    tramos.push({ ini: rango.min, fin: fIO, color: colorOfEstado('SIN_INTERVENCION') });
+    let cursor = fIO;
+    if (fPa && fPa > cursor) {
+      tramos.push({ ini: cursor, fin: fPa, color: colorOfEstado('EN_EJECUCION') });
+      cursor = fPa;
+    }
+    if (fIE && fIE > cursor) {
+      const colorMid = fPa ? colorOfEstado('ENTREGADO_PARCIAL') : colorOfEstado('EN_EJECUCION');
+      tramos.push({ ini: cursor, fin: fIE, color: colorMid });
+      cursor = fIE;
+    }
+    if (fFE && fFE > cursor) {
+      tramos.push({ ini: cursor, fin: fFE, color: colorOfEstado('EN_ENTREGAS') });
+      cursor = fFE;
+    }
+    // Fin: ENTREGADO hasta el final
+    if (cursor < rango.max) {
+      // si no había fin de entregas, asumir EN_EJECUCION hasta fFO o rango.max
+      const ultimo = fFE ? colorOfEstado('ENTREGADO') : (fFO && fFO > cursor ? colorOfEstado('EN_EJECUCION') : colorOfEstado('ENTREGADO'));
+      tramos.push({ ini: cursor, fin: rango.max, color: ultimo });
+    }
+
+    const y = idx * stripHeight;
+    for (const t of tramos) {
+      const x1 = (t.ini - rango.min) / (rango.max - rango.min) * 100;
+      const x2 = (t.fin - rango.min) / (rango.max - rango.min) * 100;
+      const seg = document.createElement('div');
+      seg.style.position = 'absolute';
+      seg.style.left = x1 + '%';
+      seg.style.width = (x2 - x1) + '%';
+      seg.style.top = y + 'px';
+      seg.style.height = stripHeight + 'px';
+      seg.style.background = t.color;
+      segs.appendChild(seg);
+    }
+  });
+}
+
+/* ============================================================
+   CANVAS / DRAWING
+   ============================================================ */
+const canvas = $('#stage');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  const wrap = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = wrap.clientWidth * dpr;
+  canvas.height = wrap.clientHeight * dpr;
+  canvas.style.width = wrap.clientWidth + 'px';
+  canvas.style.height = wrap.clientHeight + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  draw();
+}
+window.addEventListener('resize', resizeCanvas);
+
+function screenToWorld(sx, sy) {
+  return {
+    x: (sx - state.view.x) / state.view.scale,
+    y: (sy - state.view.y) / state.view.scale,
+  };
+}
+function worldToScreen(wx, wy) {
+  return {
+    x: wx * state.view.scale + state.view.x,
+    y: wy * state.view.scale + state.view.y,
+  };
+}
+
+function fitImageToCanvas() {
+  if (!state.image) return;
+  const wrap = canvas.parentElement;
+  const cw = wrap.clientWidth;
+  const ch = wrap.clientHeight;
+  const iw = state.image.naturalWidth;
+  const ih = state.image.naturalHeight;
+  const margin = 60;
+  const scale = Math.min((cw - margin*2) / iw, (ch - margin*2) / ih);
+  state.view.scale = scale;
+  state.view.x = (cw - iw * scale) / 2;
+  state.view.y = (ch - ih * scale) / 2;
+  draw();
+}
+
+function draw() {
+  const wrap = canvas.parentElement;
+  ctx.clearRect(0, 0, wrap.clientWidth, wrap.clientHeight);
+
+  if (!state.currentMacroId) {
+    $('#canvas-empty').style.display = 'flex';
+    $('#canvas-empty').innerHTML = `
+      <div class="big">Selecciona o crea un macroproyecto</div>
+      <div class="small">El visor te permite cargar un plano, dibujar polígonos sobre él y simular cómo cambian de estado en el tiempo según el cronograma de obra.</div>
+    `;
+    return;
+  }
+  const macro = state.macros[state.currentMacroId];
+
+  if (!macro.imagen) {
+    $('#canvas-empty').style.display = 'flex';
+    $('#canvas-empty').innerHTML = `
+      <div class="big">Carga el plano</div>
+      <div class="small">Sube una imagen del plano del macroproyecto para empezar a dibujar polígonos sobre ella.</div>
+      <button class="btn btn-primary upload-cta" onclick="document.getElementById('file-image').click()">Subir imagen</button>
+    `;
+    return;
+  }
+
+  $('#canvas-empty').style.display = 'none';
+
+  // Dibujar imagen
+  if (state.image) {
+    ctx.save();
+    ctx.translate(state.view.x, state.view.y);
+    ctx.scale(state.view.scale, state.view.scale);
+    ctx.drawImage(state.image, 0, 0);
+    ctx.restore();
+  }
+
+  // Dibujar polígonos
+  for (const poly of macro.poligonos) {
+    drawPolygon(poly);
+  }
+
+  // Dibujar polígono en construcción
+  if (state.tool === 'draw' && state.draftPoints.length > 0) {
+    drawDraftPolygon();
+  }
+
+  // Zoom info
+  $('#zoom-info').textContent = Math.round(state.view.scale * 100) + '%';
+}
+
+function drawPolygon(poly) {
+  if (!poly.puntos || poly.puntos.length < 2) return;
+  const est = state.cutDate ? estadoEnFecha(poly, state.cutDate) : null;
+  const color = est ? colorOfEstado(est) : '#888888';
+  const isSelected = poly.id === state.selectedPolyId;
+
+  ctx.save();
+  ctx.beginPath();
+  const p0 = worldToScreen(poly.puntos[0].x, poly.puntos[0].y);
+  ctx.moveTo(p0.x, p0.y);
+  for (let i = 1; i < poly.puntos.length; i++) {
+    const p = worldToScreen(poly.puntos[i].x, poly.puntos[i].y);
+    ctx.lineTo(p.x, p.y);
+  }
+  ctx.closePath();
+
+  // Fill semitransparente
+  ctx.fillStyle = color + (isSelected ? 'AA' : '77');
+  ctx.fill();
+
+  // Borde
+  ctx.strokeStyle = isSelected ? '#D4A574' : color;
+  ctx.lineWidth = isSelected ? 3 : 2;
+  ctx.stroke();
+
+  // Label en centroide
+  const c = centroid(poly.puntos);
+  const cs = worldToScreen(c.x, c.y);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '600 13px "Inter Tight", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.7)';
+  ctx.shadowBlur = 4;
+  ctx.fillText(poly.nombre || poly.id, cs.x, cs.y);
+
+  ctx.restore();
+}
+
+function drawDraftPolygon() {
+  ctx.save();
+  ctx.strokeStyle = '#D4A574';
+  ctx.fillStyle = 'rgba(212, 165, 116, 0.15)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+
+  ctx.beginPath();
+  const p0 = worldToScreen(state.draftPoints[0].x, state.draftPoints[0].y);
+  ctx.moveTo(p0.x, p0.y);
+  for (let i = 1; i < state.draftPoints.length; i++) {
+    const p = worldToScreen(state.draftPoints[i].x, state.draftPoints[i].y);
+    ctx.lineTo(p.x, p.y);
+  }
+  // Línea al mouse actual
+  if (state.draftPoints.mouse) {
+    ctx.lineTo(state.draftPoints.mouse.x, state.draftPoints.mouse.y);
+  }
+  ctx.stroke();
+  if (state.draftPoints.length >= 3) {
+    ctx.fill();
+  }
+
+  // Vértices
+  ctx.setLineDash([]);
+  for (const wp of state.draftPoints) {
+    const p = worldToScreen(wp.x, wp.y);
+    ctx.fillStyle = '#D4A574';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0E0E10';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* INTERACCIÓN CANVAS */
+canvas.addEventListener('mousedown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+
+  if (state.tool === 'draw') {
+    // Agregar vértice
+    const wp = screenToWorld(sx, sy);
+    state.draftPoints.push(wp);
+    draw();
+    return;
+  }
+
+  // Selección: ver si clic dentro de polígono
+  if (state.tool === 'select') {
+    const wp = screenToWorld(sx, sy);
+    const macro = state.macros[state.currentMacroId];
+    if (macro) {
+      // probar en orden inverso (último dibujado encima)
+      let hit = null;
+      for (let i = macro.poligonos.length - 1; i >= 0; i--) {
+        if (pointInPoly(wp, macro.poligonos[i].puntos)) {
+          hit = macro.poligonos[i];
+          break;
+        }
+      }
+      if (hit) {
+        state.selectedPolyId = hit.id;
+        renderInspector();
+        draw();
+        return;
+      } else if (state.selectedPolyId) {
+        state.selectedPolyId = null;
+        renderInspector();
+        draw();
+      }
+    }
+    // Iniciar pan
+    state.panning = true;
+    state.panStart = { x: sx - state.view.x, y: sy - state.view.y };
+    canvas.classList.add('panning');
+  }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+  const wp = screenToWorld(sx, sy);
+  $('#coord-info').textContent = `${Math.round(wp.x)}, ${Math.round(wp.y)}`;
+
+  if (state.panning) {
+    state.view.x = sx - state.panStart.x;
+    state.view.y = sy - state.panStart.y;
+    draw();
+    return;
+  }
+  if (state.tool === 'draw' && state.draftPoints.length > 0) {
+    state.draftPoints.mouse = { x: sx, y: sy };
+    draw();
+  }
+});
+
+canvas.addEventListener('mouseup', () => {
+  state.panning = false;
+  canvas.classList.remove('panning');
+});
+canvas.addEventListener('mouseleave', () => {
+  state.panning = false;
+  canvas.classList.remove('panning');
+  if (state.draftPoints.mouse) {
+    state.draftPoints.mouse = null;
+    draw();
+  }
+});
+
+// Zoom con wheel
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+  const wp = screenToWorld(sx, sy);
+  const factor = e.deltaY < 0 ? 1.1 : 0.9;
+  state.view.scale *= factor;
+  state.view.scale = Math.max(0.05, Math.min(10, state.view.scale));
+  // Mantener punto bajo el mouse
+  state.view.x = sx - wp.x * state.view.scale;
+  state.view.y = sy - wp.y * state.view.scale;
+  draw();
+}, { passive: false });
+
+// Keyboard
+window.addEventListener('keydown', (e) => {
+  if (state.tool === 'draw') {
+    if (e.key === 'Enter') {
+      finishDrawingPolygon();
+    } else if (e.key === 'Escape') {
+      state.draftPoints = [];
+      setTool('select');
+      draw();
+    }
+  }
+});
+
+function finishDrawingPolygon() {
+  if (state.draftPoints.length < 3) {
+    toast('Se necesitan al menos 3 vértices');
+    return;
+  }
+  const macro = state.macros[state.currentMacroId];
+  const idx = macro.poligonos.length + 1;
+  const newPoly = {
+    id: uid('poly'),
+    nombre: `P-${String(idx).padStart(2, '0')}`,
+    proyecto: '',
+    etapa: '',
+    torre: '',
+    nUnidades: 0,
+    fechaInicioObra: null,
+    fechaFinObra: null,
+    fechaEntregaParcial: null,
+    fechaInicioEntregas: null,
+    fechaFinEntregas: null,
+    notas: '',
+    puntos: state.draftPoints.filter(p => typeof p.x === 'number' && typeof p.y === 'number'),
+  };
+  macro.poligonos.push(newPoly);
+  state.draftPoints = [];
+  state.selectedPolyId = newPoly.id;
+  setTool('select');
+  saveToStorage();
+  renderAll();
+  toast(`Polígono ${newPoly.nombre} creado · edita sus fechas a la derecha`);
+}
+
+function setTool(t) {
+  state.tool = t;
+  $('#tool-select').classList.toggle('active', t === 'select');
+  $('#tool-draw').classList.toggle('active', t === 'draw');
+  canvas.classList.toggle('drawing', t === 'draw');
+  $('#drawing-hint').style.display = (t === 'draw') ? 'block' : 'none';
+  if (t !== 'draw') state.draftPoints = [];
+  draw();
+}
+
+/* ============================================================
+   ACCIONES PRINCIPALES
+   ============================================================ */
+function selectMacro(id) {
+  state.currentMacroId = id;
+  state.selectedPolyId = null;
+  state.cutDate = null;
+  state.draftPoints = [];
+  state.tool = 'select';
+  loadMacroImage(() => {
+    fitImageToCanvas();
+    renderAll();
+  });
+}
+
+function loadMacroImage(cb) {
+  const macro = state.macros[state.currentMacroId];
+  if (!macro || !macro.imagen) {
+    state.image = null;
+    if (cb) cb();
+    return;
+  }
+  const img = new Image();
+  img.onload = () => { state.image = img; if (cb) cb(); };
+  img.onerror = () => { state.image = null; if (cb) cb(); };
+  img.src = macro.imagen;
+}
+
+function renderAll() {
+  renderMacroList();
+  renderTopbar();
+  renderInspector();
+  renderTimeline();
+
+  const canEdit = !!state.currentMacroId;
+  $('#tool-select').disabled = !canEdit;
+  $('#tool-upload-img').disabled = !canEdit;
+  const hasImage = canEdit && state.macros[state.currentMacroId]?.imagen;
+  $('#tool-draw').disabled = !hasImage;
+
+  draw();
+}
+
+/* ============================================================
+   EVENTOS UI
+   ============================================================ */
+// Nuevo macro
+$('#btn-new-macro').addEventListener('click', () => {
+  $('#new-macro-name').value = '';
+  $('#new-macro-code').value = '';
+  $('#modal-new-macro').classList.add('open');
+  setTimeout(() => $('#new-macro-name').focus(), 100);
+});
+$('#cancel-new-macro').addEventListener('click', () => {
+  $('#modal-new-macro').classList.remove('open');
+});
+$('#confirm-new-macro').addEventListener('click', () => {
+  const nombre = $('#new-macro-name').value.trim();
+  if (!nombre) { toast('El nombre es obligatorio'); return; }
+  const codigo = $('#new-macro-code').value.trim();
+  const id = uid('macro');
+  state.macros[id] = {
+    id, nombre, codigo,
+    imagen: null,
+    poligonos: [],
+    created: Date.now(),
+  };
+  state.currentMacroId = id;
+  state.image = null;
+  saveToStorage();
+  $('#modal-new-macro').classList.remove('open');
+  renderAll();
+});
+$('#modal-new-macro').addEventListener('click', (e) => {
+  if (e.target.id === 'modal-new-macro') $('#modal-new-macro').classList.remove('open');
+});
+
+// Tool buttons
+$('#tool-select').addEventListener('click', () => setTool('select'));
+$('#tool-draw').addEventListener('click', () => {
+  if ($('#tool-draw').disabled) return;
+  setTool('draw');
+});
+
+// Subir imagen
+$('#tool-upload-img').addEventListener('click', () => $('#file-image').click());
+$('#file-image').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const macro = state.macros[state.currentMacroId];
+    macro.imagen = reader.result;
+    saveToStorage();
+    loadMacroImage(() => {
+      fitImageToCanvas();
+      renderAll();
+    });
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+// Timeline slider
+$('#timeline-slider').addEventListener('input', (e) => {
+  state.cutDate = parseInt(e.target.value);
+  $('#cut-date').textContent = fmtDateLong(state.cutDate);
+  // Solo actualizar lo necesario
+  if (state.selectedPolyId) {
+    updateCurrentStateBadge();
+  } else {
+    renderInspector();
+  }
+  draw();
+});
+
+// Export JSON
+$('#btn-export').addEventListener('click', () => {
+  const macro = state.macros[state.currentMacroId];
+  if (!macro) return;
+  // Exportar sin la imagen (es muy pesada). El usuario debe re-subirla si reimporta.
+  const data = {
+    type: 'visor_temporal_macro',
+    version: 1,
+    macro: {
+      ...macro,
+      imagen: null,  // se omite la imagen para mantener tamaño razonable
+    },
+    exportedAt: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${macro.nombre.replace(/[^a-z0-9-]/gi, '_')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('JSON exportado (sin imagen, súbela manualmente al reimportar)');
+});
+
+// Import JSON
+$('#btn-import').addEventListener('click', () => $('#file-import').click());
+$('#file-import').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (data.type !== 'visor_temporal_macro' || !data.macro) {
+        toast('Archivo no reconocido');
+        return;
+      }
+      const m = data.macro;
+      // Generar nuevo ID si ya existe
+      let newId = m.id;
+      if (state.macros[newId]) newId = uid('macro');
+      m.id = newId;
+      m.created = m.created || Date.now();
+      state.macros[newId] = m;
+      state.currentMacroId = newId;
+      saveToStorage();
+      loadMacroImage(() => {
+        fitImageToCanvas();
+        renderAll();
+      });
+      toast(`Macro "${m.nombre}" importado`);
+    } catch (err) {
+      toast('Error al leer el archivo');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+loadFromStorage();
+resizeCanvas();
+renderAll();
+</script>
+
+</body>
+</html>
